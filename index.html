@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Déli'O — Hub de Jeux Pétillants</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<!-- ===== HOME ===== -->
+<div id="home" class="screen active">
+  <div class="home-logo">
+    <h1>Déli'O</h1>
+    <div class="sub">✦ Hub de Jeux Pétillants ✦</div>
+  </div>
+  <div class="flavor-row">
+    <span class="flavor-chip" style="background:rgba(38,198,218,0.3);border-color:#26c6da;animation-delay:0.1s">🌿 Menthe</span>
+    <span class="flavor-chip" style="background:rgba(139,195,74,0.3);border-color:#8bc34a;animation-delay:0.15s">🍐 Poire</span>
+    <span class="flavor-chip" style="background:rgba(255,179,0,0.3);border-color:#ffb300;animation-delay:0.2s">🍑 Pêche</span>
+    <span class="flavor-chip" style="background:rgba(236,64,122,0.3);border-color:#ec407a;animation-delay:0.25s">🍓 Fraise</span>
+    <span class="flavor-chip" style="background:rgba(245,147,0,0.3);border-color:#f59300;animation-delay:0.3s">🍍 Ananas</span>
+    <span class="flavor-chip" style="background:rgba(67,160,71,0.3);border-color:#43a047;animation-delay:0.35s">🍏 Pomme</span>
+  </div>
+  <p class="tagline">Choisis un jeu et plonge dans l'aventure pétillante ! 🫧</p>
+  <div class="games-grid">
+    <div class="game-card" onclick="startGame(1)" style="--gc:#f5c200">
+      <span class="gbadge" style="background:rgba(245,194,0,0.2);color:#f5c200;border:1px solid rgba(245,194,0,0.4)">Attrape!</span>
+      <span class="icon">🎯</span>
+      <div class="gname">Attrape Pétillant</div>
+      <div class="gdesc">Attrape les bons fruits qui tombent du ciel !</div>
+    </div>
+    <div class="game-card" onclick="startGame(2)" style="--gc:#ec407a">
+      <span class="gbadge" style="background:rgba(236,64,122,0.2);color:#ec407a;border:1px solid rgba(236,64,122,0.4)">Aligne!</span>
+      <span class="icon">🍇</span>
+      <div class="gname">Cascade de Saveurs</div>
+      <div class="gdesc">Échange et aligne 3 fruits identiques !</div>
+    </div>
+    <div class="game-card" onclick="startGame(3)" style="--gc:#26c6da">
+      <span class="gbadge" style="background:rgba(38,198,218,0.2);color:#26c6da;border:1px solid rgba(38,198,218,0.4)">Tape!</span>
+      <span class="icon">💥</span>
+      <div class="gname">Déli'O Pop</div>
+      <div class="gdesc">Tape la bonne saveur avant qu'elle disparaisse !</div>
+    </div>
+    <div class="game-card" onclick="startGame(4)" style="--gc:#8bc34a">
+      <span class="gbadge" style="background:rgba(139,195,74,0.2);color:#8bc34a;border:1px solid rgba(139,195,74,0.4)">Mémoire!</span>
+      <span class="icon">🧠</span>
+      <div class="gname">Slid-e'O Mémoire</div>
+      <div class="gdesc">Retourne et associe les 6 paires de saveurs !</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== GAME 1 ===== -->
+<div id="game1" class="screen">
+  <div class="game-header">
+    <button class="btn-back" onclick="goHome()">← Retour</button>
+    <div class="title">🎯 Attrape Pétillant</div>
+    <div class="score-pill" id="g1score">0 pts</div>
+  </div>
+  <div id="g1-hud">
+    <div class="flavor-indicator">
+      <div class="flavor-dot-big" id="g1dot"></div>
+      <span id="g1flavorname" style="font-size:13px"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800">
+      ❤️ <span id="g1lives">3</span>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.6)">Bouge la souris !</div>
+  </div>
+  <div class="game-body">
+    <canvas id="g1canvas"></canvas>
+    <div class="overlay" id="g1over">
+      <h2>💥 Perdu !</h2>
+      <p>Ton score : <span id="g1final" style="color:var(--yellow)">0</span> pts</p>
+      <div class="progress-stars" id="g1stars"></div>
+      <button class="btn-primary" onclick="initGame1()">Rejouer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== GAME 2 ===== -->
+<div id="game2" class="screen">
+  <div class="game-header">
+    <button class="btn-back" onclick="goHome()">← Retour</button>
+    <div class="title">🍇 Cascade de Saveurs</div>
+    <div class="score-pill" id="g2score">0 pts</div>
+  </div>
+  <div id="g2-hud">
+    <div class="hud-stat"><div class="hud-label">Score</div><div class="hud-val" id="g2pts">0</div></div>
+    <div class="hud-stat"><div class="hud-label">Coups restants</div><div class="hud-val" id="g2moves">30</div></div>
+    <div class="hud-stat"><div class="hud-label">Combos</div><div class="hud-val" id="g2combos">0</div></div>
+  </div>
+  <div class="game-body">
+    <div id="g2board-wrap"><div id="g2board"></div></div>
+    <div class="overlay" id="g2over">
+      <h2>✨ Bien joué !</h2>
+      <p>Score final : <span id="g2final" style="color:var(--yellow)">0</span> pts</p>
+      <div class="progress-stars" id="g2stars"></div>
+      <button class="btn-primary" onclick="initGame2()">Rejouer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== GAME 3 ===== -->
+<div id="game3" class="screen">
+  <div class="game-header">
+    <button class="btn-back" onclick="goHome()">← Retour</button>
+    <div class="title">💥 Déli'O Pop</div>
+    <div class="score-pill" id="g3score">0 pts</div>
+  </div>
+  <div id="g3-hud">
+    <div class="hud-stat"><div class="hud-label">Score</div><div class="hud-val" id="g3pts">0</div></div>
+    <div class="hud-stat"><div class="hud-label">Temps</div><div class="hud-val" id="g3time">45</div></div>
+    <div class="hud-stat"><div class="hud-label">Série</div><div class="hud-val" id="g3streak">0</div></div>
+  </div>
+  <div class="timer-bar-wrap"><div class="timer-bar" id="g3bar" style="width:100%"></div></div>
+  <div class="game-body" style="overflow-y:auto">
+    <div class="g3-target-box">
+      <div class="g3-target-label">Tape cette saveur !</div>
+      <span class="g3-target-emoji" id="g3emoji">🌿</span>
+      <div class="g3-target-name" id="g3name">Menthe</div>
+    </div>
+    <div id="g3grid"></div>
+    <div class="overlay" id="g3over">
+      <h2>⏱ Temps écoulé !</h2>
+      <p>Score : <span id="g3final" style="color:var(--yellow)">0</span> pts</p>
+      <div class="progress-stars" id="g3stars"></div>
+      <button class="btn-primary" onclick="initGame3()">Rejouer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== GAME 4 ===== -->
+<div id="game4" class="screen">
+  <div class="game-header">
+    <button class="btn-back" onclick="goHome()">← Retour</button>
+    <div class="title">🧠 Slid-e'O Mémoire</div>
+    <div class="score-pill" id="g4score">0 pts</div>
+  </div>
+  <div id="g4-hud">
+    <div class="hud-stat"><div class="hud-label">Paires trouvées</div><div class="hud-val" id="g4matched">0 / 6</div></div>
+    <div class="hud-stat"><div class="hud-label">Coups</div><div class="hud-val" id="g4moves">0</div></div>
+    <div class="hud-stat"><div class="hud-label">Meilleur</div><div class="hud-val" id="g4best">—</div></div>
+  </div>
+  <div class="game-body">
+    <div id="g4board-wrap"><div id="g4board"></div></div>
+    <div class="overlay" id="g4win">
+      <h2>🎉 Bravo !</h2>
+      <p>Terminé en <span id="g4final" style="color:var(--yellow)">0</span> coups !</p>
+      <div class="progress-stars" id="g4stars"></div>
+      <button class="btn-primary" onclick="initGame4()">Rejouer</button>
+    </div>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
