@@ -10,6 +10,7 @@
 <body>
 
 <canvas id="bg-canvas"></canvas>
+<button id="sound-btn" onclick="toggleSound()" title="Son on/off">🔊</button>
 
 <!-- ===== HOME ===== -->
 <div id="home" class="screen active">
@@ -69,7 +70,7 @@
     <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:800">
       ❤️ <span id="g1lives">3</span>
     </div>
-    <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.6)">Bouge la souris !</div>
+    <div style="font-size:12px;font-weight:700;color:rgba(255,255,255,0.6)">Bouge / glisse !</div>
   </div>
   <div class="game-body">
     <canvas id="g1canvas"></canvas>
@@ -114,7 +115,7 @@
   </div>
   <div id="g3-hud">
     <div class="hud-stat"><div class="hud-label">Score</div><div class="hud-val" id="g3pts">0</div></div>
-    <div class="hud-stat"><div class="hud-label">Temps</div><div class="hud-val" id="g3time">45</div></div>
+    <div class="hud-stat"><div class="hud-label">Temps</div><div class="hud-val" id="g3time">60</div></div>
     <div class="hud-stat"><div class="hud-label">Série</div><div class="hud-val" id="g3streak">0</div></div>
   </div>
   <div class="timer-bar-wrap"><div class="timer-bar" id="g3bar" style="width:100%"></div></div>
