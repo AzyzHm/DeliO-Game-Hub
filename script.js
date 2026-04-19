@@ -1,3 +1,4 @@
+// ===== CONSTANTS =====
 const FLAVORS = [
   { name:'Menthe',   emoji:'🌿', color:'#26c6da', bg:'rgba(38,198,218,0.2)',  imgKey:'mint'        },
   { name:'Poire',    emoji:'🍐', color:'#8bc34a', bg:'rgba(139,195,74,0.2)', imgKey:'pear'        },
@@ -427,6 +428,10 @@ const BOTTLE_IMGS = {};
 // ===== GAME 1: SPARKLE CATCH =====
 function initGame1() {
   let score=0, lives=3, flavorIdx=0, items=[], lastItem=0, speed=2.8, active=true;
+  let flavorTimer=0; // counts seconds since last flavor switch
+  const FLAVOR_INTERVAL = 20; // switch every 20 seconds
+  let showingAlert = false, alertAlpha = 0;
+
   const canvas = document.getElementById('g1canvas');
   const parent = canvas.parentElement;
   const W = Math.min(parent.clientWidth, 480);
@@ -438,27 +443,54 @@ function initGame1() {
 
   document.getElementById('g1over').classList.remove('show');
 
-  function setFlavor() {
-    flavorIdx = Math.floor(Math.random()*6);
+  function renderHearts() {
+    const el = document.getElementById('g1lives');
+    el.innerHTML = '';
+    for(let i=0;i<3;i++){
+      const s = document.createElement('span');
+      s.textContent = i < lives ? '❤️' : '🖤';
+      s.style.fontSize = '16px';
+      el.appendChild(s);
+    }
+  }
+
+  function setFlavor(newIdx) {
+    // Pick a different flavor than current
+    let next = newIdx !== undefined ? newIdx : Math.floor(Math.random()*6);
+    while(next === flavorIdx) next = Math.floor(Math.random()*6);
+    flavorIdx = next;
     const f = FLAVORS[flavorIdx];
     document.getElementById('g1dot').style.background = f.color;
     document.getElementById('g1dot').style.boxShadow = '0 0 8px '+f.color;
     document.getElementById('g1flavorname').textContent = f.emoji+' '+f.name;
   }
-  setFlavor();
+  setFlavor(0); // start with Menthe
 
   function updateHUD() {
     bumpScore('g1score', score);
-    document.getElementById('g1lives').textContent = '❤️'.repeat(lives) || '💀';
+    renderHearts();
+  }
+  renderHearts();
+
+  // Flavor switch alert overlay (drawn on canvas)
+  let alertText = '';
+  let alertTimer = 0;
+
+  function triggerFlavorAlert(f) {
+    alertText = '🔄 Nouvelle saveur : '+f.emoji+' '+f.name+' !';
+    alertTimer = 120; // frames to show alert (~2s at 60fps)
+    SFX.speedup();
+    showingAlert = true;
   }
 
   function spawnItem() {
-    const isBonus = Math.random() < 0.18;
+    const isBonus = Math.random() < 0.15;
     let emoji, isTarget=false, fi=-1;
     if(isBonus) {
       emoji = BONUS_ITEMS[Math.floor(Math.random()*BONUS_ITEMS.length)];
     } else {
-      isTarget = Math.random() < 0.42;
+      // 55% chance of target fruit so player can find it easily
+      isTarget = Math.random() < 0.55;
       fi = isTarget ? flavorIdx : Math.floor(Math.random()*6);
       while(!isTarget && fi===flavorIdx) fi=Math.floor(Math.random()*6);
       emoji = FLAVORS[fi].emoji;
@@ -474,6 +506,16 @@ function initGame1() {
     });
   }
 
+  // 20-second interval to switch flavor
+  const flavorInterval = setInterval(()=>{
+    if(!active) return;
+    // Clear items that were the old target to avoid confusion
+    items = items.filter(it => !it.isTarget);
+    setFlavor();
+    triggerFlavorAlert(FLAVORS[flavorIdx]);
+  }, FLAVOR_INTERVAL * 1000);
+  activeTimers.push(flavorInterval);
+
   function drawBottle(x, y, fi) {
     const f = FLAVORS[fi];
     const img = BOTTLE_IMGS[f.imgKey];
@@ -482,17 +524,13 @@ function initGame1() {
     ctx.shadowBlur = 26;
     ctx.shadowOffsetY = 4;
     if(img && img.complete && img.naturalWidth > 0) {
-      // The images are 16:9 landscape with the bottle centered.
-      // Crop to the middle ~38% of the width to isolate the bottle.
       const iw = img.naturalWidth, ih = img.naturalHeight;
       const cropW = iw * 0.38;
-      const sx = (iw - cropW) / 2; // center crop
-      const sy = 0;
-      const bH = 110; // display height
-      const bW = bH * (cropW / ih); // preserve aspect ratio of the cropped region
-      ctx.drawImage(img, sx, sy, cropW, ih, x - bW/2, y - bH, bW, bH);
+      const sx = (iw - cropW) / 2;
+      const bH = 110;
+      const bW = bH * (cropW / ih);
+      ctx.drawImage(img, sx, 0, cropW, ih, x - bW/2, y - bH, bW, bH);
     } else {
-      // Fallback while image loads
       const bH = 110, bW = 38;
       ctx.fillStyle = f.color;
       ctx.beginPath();
@@ -510,12 +548,10 @@ function initGame1() {
   function loop(ts) {
     if(!active) return;
     ctx.clearRect(0,0,W,H);
-
-    // Solid dark bg so emojis are fully opaque
     ctx.fillStyle = '#0d1b4b';
     ctx.fillRect(0,0,W,H);
 
-    // Subtle lane guides
+    // Lane guides
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
     ctx.lineWidth = 1;
     for(let i=0;i<W;i+=60) {
@@ -534,7 +570,7 @@ function initGame1() {
       ctx.font = it.size+'px serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = '#000'; // fallback
+      ctx.fillStyle = '#000';
       ctx.fillText(it.emoji, wx, it.y);
       ctx.restore();
 
@@ -550,13 +586,14 @@ function initGame1() {
           SFX.catch();
           showCombo('+10 !', FLAVORS[flavorIdx].color);
           spawnParticle(bottleX, bY - 30, FLAVORS[flavorIdx].emoji);
-          if(Math.random()<0.18) setFlavor();
         } else {
           lives--;
           SFX.miss();
           showCombo('Raté ! -❤️', '#e53935');
           if(lives<=0) {
             active=false;
+            clearInterval(flavorInterval);
+            renderHearts(); // clear the last heart immediately
             SFX.gameover();
             document.getElementById('g1final').textContent=score;
             document.getElementById('g1stars').innerHTML=makeStars(score,500);
@@ -584,6 +621,33 @@ function initGame1() {
     ctx.arc(bottleX, H - 55, 42, 0, Math.PI*2);
     ctx.stroke();
     ctx.restore();
+
+    // Flavor switch alert banner
+    if(alertTimer > 0) {
+      alertTimer--;
+      const fade = alertTimer > 90 ? 1 : alertTimer / 90;
+      ctx.save();
+      ctx.globalAlpha = fade;
+      // Banner bg
+      const bw = Math.min(W - 20, 340), bh = 44, bx = (W-bw)/2, by = 18;
+      ctx.fillStyle = 'rgba(10,20,60,0.85)';
+      if(ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 10);
+      else ctx.rect(bx, by, bw, bh);
+      ctx.fill();
+      ctx.strokeStyle = FLAVORS[flavorIdx].color;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([]);
+      if(ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 10);
+      else ctx.rect(bx, by, bw, bh);
+      ctx.stroke();
+      // Text
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 14px Nunito, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(alertText, W/2, by + bh/2);
+      ctx.restore();
+    }
 
     window._g1raf = requestAnimationFrame(loop);
   }
@@ -632,6 +696,7 @@ function initGame2() {
     return document.getElementById('g2board').children[r*COLS+c];
   }
 
+  // Full rebuild — only called on init and after gravity
   function render() {
     const el = document.getElementById('g2board');
     el.innerHTML='';
@@ -647,6 +712,28 @@ function initGame2() {
       }
       el.appendChild(d);
     }
+    updateHUD();
+  }
+
+  // Lightweight patch — update only changed cells without rebuilding DOM
+  function patchCells(indices) {
+    indices.forEach(idx => {
+      const r=Math.floor(idx/COLS), c=idx%COLS;
+      const d=getCellEl(r,c);
+      if(!d) return;
+      if(board[r][c]===-1){
+        d.className='g2cell matched';
+        d.textContent='';
+        d.style.background='';
+        d.style.transform='';
+      } else {
+        d.className='g2cell';
+        d.textContent=FLAVORS[board[r][c]].emoji;
+        d.style.background=FLAVORS[board[r][c]].bg;
+        d.style.transform='';
+        attachDrag(d, r, c);
+      }
+    });
     updateHUD();
   }
 
@@ -711,13 +798,12 @@ function initGame2() {
 
   function doSwap(r1,c1,r2,c2) {
     if(animating) return;
-    // Animate slide
     const a=getCellEl(r1,c1), b=getCellEl(r2,c2);
     if(!a||!b) return;
     const cellW=a.offsetWidth, cellH=a.offsetHeight;
     const ddx=(c2-c1)*cellW, ddy=(r2-r1)*cellH;
-    a.style.transition='transform 0.22s cubic-bezier(0.4,0,0.2,1)';
-    b.style.transition='transform 0.22s cubic-bezier(0.4,0,0.2,1)';
+    a.style.transition='transform 0.18s cubic-bezier(0.4,0,0.2,1)';
+    b.style.transition='transform 0.18s cubic-bezier(0.4,0,0.2,1)';
     a.style.transform=`translate(${ddx}px,${ddy}px)`;
     b.style.transform=`translate(${-ddx}px,${-ddy}px)`;
     animating=true;
@@ -727,24 +813,27 @@ function initGame2() {
       if(matches.length){
         moves--;
         SFX.swap();
-        render();
+        // Patch only the two swapped cells to clear transform, then mark matches
+        patchCells([r1*COLS+c1, r2*COLS+c2]);
         processMatches(matches);
       } else {
-        // bounce back
         SFX.noMatch();
         [board[r1][c1],board[r2][c2]]=[board[r2][c2],board[r1][c1]];
-        render();
-        const ba=getCellEl(r1,c1), bb=getCellEl(r2,c2);
-        if(ba&&bb){
-          ba.style.transition='transform 0.18s cubic-bezier(0.4,0,0.2,1)';
-          bb.style.transition='transform 0.18s cubic-bezier(0.4,0,0.2,1)';
-          ba.style.transform=`translate(${ddx*.25}px,${ddy*.25}px)`;
-          bb.style.transform=`translate(${-ddx*.25}px,${-ddy*.25}px)`;
-          setTimeout(()=>{ba.style.transform='';bb.style.transform='';animating=false;},180);
-        } else { animating=false; }
+        // Bounce back animation
+        a.style.transition='transform 0.15s cubic-bezier(0.4,0,0.2,1)';
+        b.style.transition='transform 0.15s cubic-bezier(0.4,0,0.2,1)';
+        a.style.transform=`translate(${ddx*.2}px,${ddy*.2}px)`;
+        b.style.transform=`translate(${-ddx*.2}px,${-ddy*.2}px)`;
+        setTimeout(()=>{
+          a.style.transition='transform 0.12s ease';
+          b.style.transition='transform 0.12s ease';
+          a.style.transform='';
+          b.style.transform='';
+          animating=false;
+        },150);
       }
       if(!animating && moves<=0) endGame2();
-    },230);
+    },180);
     activeTimers.push(t);
   }
 
@@ -761,20 +850,21 @@ function initGame2() {
     SFX.match();
     const fi = board[Math.floor(matches[0]/COLS)][matches[0]%COLS];
     if(fi>=0) showCombo('+'+pts+' !', FLAVORS[fi].color);
+    // Mark matched cells in board and patch DOM (no full rebuild)
     matches.forEach(i=>{ board[Math.floor(i/COLS)][i%COLS]=-1; });
-    render();
+    patchCells(matches);
     const t1=setTimeout(()=>{
       gravity();
-      render();
+      render(); // full rebuild only after gravity fills new tiles
       const m2=findMatches();
       if(m2.length) {
-        const t2=setTimeout(()=>processMatches(m2),320);
+        const t2=setTimeout(()=>processMatches(m2),250);
         activeTimers.push(t2);
       } else {
         animating=false;
         if(moves<=0) endGame2();
       }
-    },320);
+    },280);
     activeTimers.push(t1);
   }
 
@@ -829,12 +919,14 @@ function initGame3() {
     grid.appendChild(d);
   }
 
-  function showItem(){
+  function showItem(forceHole){
     const avail=[];
     for(let i=0;i<9;i++) if(!activeHoles[i]) avail.push(i);
     if(!avail.length) return;
-    const hole=avail[Math.floor(Math.random()*avail.length)];
-    const fi=Math.floor(Math.random()*6);
+    const hole = forceHole !== undefined ? forceHole : avail[Math.floor(Math.random()*avail.length)];
+    if(activeHoles[hole] !== undefined) return;
+    // Each hole spawns a fully random flavor
+    const fi = Math.floor(Math.random()*6);
     activeHoles[hole]=fi;
     const d=grid.children[hole];
     d.querySelector('.emoji-inner').textContent=FLAVORS[fi].emoji;
@@ -852,9 +944,26 @@ function initGame3() {
     activeTimers.push(tid);
   }
 
+  function showBurst(){
+    // Spawn 2–4 fruits simultaneously from different available holes
+    const avail=[];
+    for(let i=0;i<9;i++) if(!activeHoles[i]) avail.push(i);
+    if(!avail.length) return;
+    // Shuffle available holes
+    for(let i=avail.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[avail[i],avail[j]]=[avail[j],avail[i]];}
+    const count = Math.min(avail.length, 2 + Math.floor(Math.random()*3)); // 2, 3, or 4
+    // Stagger each hole by a tiny offset so animations feel natural
+    for(let k=0;k<count;k++){
+      const hole=avail[k];
+      const delay = k * 80; // 80ms between each
+      const tid2=setTimeout(()=>showItem(hole), delay);
+      activeTimers.push(tid2);
+    }
+  }
+
   function scheduleSpawn(){
     spawnTimer=setTimeout(()=>{
-      showItem();
+      showBurst();
       scheduleSpawn();
     }, spawnInterval + (Math.random()-0.5)*200);
     activeTimers.push(spawnTimer);
