@@ -276,6 +276,27 @@ function tryStartMusic() {
 }
 document.addEventListener('click', tryStartMusic);
 document.addEventListener('touchstart', tryStartMusic);
+(function(){
+  const container = document.getElementById('hero-bubbles');
+  if(!container) return;
+  const colors = ['#26c6da','#8bc34a','#ffb300','#ec407a','#f59300','#43a047','#f5c200'];
+  for(let i=0;i<18;i++){
+    const b = document.createElement('div');
+    b.className = 'hero-bubble';
+    const size = 6 + Math.random()*18;
+    const color = colors[Math.floor(Math.random()*colors.length)];
+    b.style.cssText = `
+      width:${size}px;height:${size}px;
+      left:${5+Math.random()*90}%;
+      bottom:${Math.random()*30}%;
+      border-color:${color};
+      background:${color}22;
+      animation-delay:${Math.random()*5}s;
+      animation-duration:${3+Math.random()*4}s;
+    `;
+    container.appendChild(b);
+  }
+})();
 
 
 // ===== BACKGROUND CANVAS =====
@@ -369,6 +390,7 @@ function goHome() {
   clearActiveTimers();
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('home').classList.add('active');
+  updateHomeCards();
   startMenuMusic();
 }
 
@@ -409,11 +431,125 @@ function bumpScore(id, val) {
   if(el) { el.textContent = val+' pts'; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
 }
 
+// ===== LOTTERY SYSTEM =====
+let threeStarGames = JSON.parse(localStorage.getItem('delio_3stars') || '{}');
+let lotteryEntered = JSON.parse(localStorage.getItem('delio_lottery') || '{}');
+let pendingLotteryGame = null;
+
+function saveThreeStar(gameId) {
+  threeStarGames[gameId] = true;
+  localStorage.setItem('delio_3stars', JSON.stringify(threeStarGames));
+}
+
+function updateHomeCards() {
+  [1,2,3,4].forEach(n => {
+    const card = document.getElementById('home-card-'+n);
+    if(!card) return;
+    // Remove old badge if exists
+    const old = card.querySelector('.card-completed-check');
+    if(old) old.remove();
+    if(threeStarGames[n]) {
+      const badge = document.createElement('div');
+      badge.className = 'card-completed-check';
+      badge.textContent = '✓';
+      badge.title = '3 étoiles obtenues !';
+      card.appendChild(badge);
+    }
+  });
+  // Update lottery progress bar
+  const done = [1,2,3,4].filter(n=>threeStarGames[n]).length;
+  [1,2,3,4].forEach(n => {
+    const pip = document.getElementById('lp'+n);
+    if(pip) pip.classList.toggle('done', !!threeStarGames[n]);
+  });
+  const label = document.getElementById('lp-label');
+  if(label) {
+    label.textContent = done + ' / 4 jeux complétés';
+    label.className = 'lottery-pip-label' + (done===4?' done':'');
+  }
+}
+
+function openLotteryModal(gameId) {
+  pendingLotteryGame = gameId;
+  const modal = document.getElementById('lottery-modal');
+  // Already entered is now global (one entry covers all 4 games)
+  const alreadyEntered = !!lotteryEntered.submitted;
+  document.getElementById('lottery-form-view').style.display = alreadyEntered ? 'none' : 'block';
+  document.getElementById('lottery-success-view').style.display = 'none';
+  document.getElementById('lottery-already-view').style.display = alreadyEntered ? 'block' : 'none';
+  // Clear fields and errors
+  ['l-name','l-email','l-phone'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = '';
+  });
+  ['l-name-err','l-email-err','l-phone-err'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.classList.remove('show');
+  });
+  modal.classList.add('show');
+}
+
+function closeLotteryModal() {
+  document.getElementById('lottery-modal').classList.remove('show');
+  pendingLotteryGame = null;
+}
+
+function submitLottery() {
+  const name  = document.getElementById('l-name').value.trim();
+  const email = document.getElementById('l-email').value.trim();
+  const phone = document.getElementById('l-phone').value.trim();
+  let valid = true;
+
+  const nameErr  = document.getElementById('l-name-err');
+  const emailErr = document.getElementById('l-email-err');
+  const phoneErr = document.getElementById('l-phone-err');
+
+  nameErr.classList.remove('show');
+  emailErr.classList.remove('show');
+  phoneErr.classList.remove('show');
+
+  if(name.length < 2) { nameErr.classList.add('show'); valid = false; }
+  const emailRx = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if(!emailRx.test(email)) { emailErr.classList.add('show'); valid = false; }
+  if(phone.replace(/\D/g,'').length < 6) { phoneErr.classList.add('show'); valid = false; }
+  if(!valid) return;
+
+  // Save entry
+  // Save as a single global entry
+  lotteryEntered.submitted = { name, email, phone, ts: Date.now() };
+  localStorage.setItem('delio_lottery', JSON.stringify(lotteryEntered));
+
+  // Show success
+  document.getElementById('lottery-form-view').style.display = 'none';
+  document.getElementById('lottery-success-view').style.display = 'block';
+  SFX.win();
+}
+
+// Close modal on backdrop click
+document.getElementById('lottery-modal').addEventListener('click', function(e){
+  if(e.target === this) closeLotteryModal();
+});
+
 function makeStars(score, max) {
   const pct = score/max;
   const stars = pct > 0.7 ? 3 : pct > 0.4 ? 2 : pct > 0.1 ? 1 : 0;
   const s = ['⭐','⭐','⭐'].map((st,i)=>`<span class="star ${i<stars?'lit':''}">${st}</span>`).join('');
-  return s;
+  return { html: s, count: stars };
+}
+
+function applyStars(elId, score, max, gameId) {
+  const result = makeStars(score, max);
+  document.getElementById(elId).innerHTML = result.html;
+  if(result.count === 3) {
+    saveThreeStar(gameId);
+    // Check if ALL 4 games now have 3 stars
+    const allDone = [1,2,3,4].every(n => threeStarGames[n]);
+    if(allDone) {
+      setTimeout(() => openLotteryModal(gameId), 1200);
+    }
+  }
+  updateHomeCards();
+  return result.count;
 }
 
 // ===== BOTTLE IMAGES =====
@@ -593,13 +729,13 @@ function initGame1() {
           if(lives<=0) {
             active=false;
             clearInterval(flavorInterval);
-            renderHearts(); // clear the last heart immediately
+            renderHearts();
             SFX.gameover();
             document.getElementById('g1final').textContent=score;
-            document.getElementById('g1stars').innerHTML=makeStars(score,500);
-            document.getElementById('g1over').classList.add('show');
+            applyStars('g1stars', score, 500, 1);
             bestScores.g1 = Math.max(bestScores.g1||0, score);
             localStorage.setItem('delio_best', JSON.stringify(bestScores));
+            document.getElementById('g1over').classList.add('show');
             return;
           }
         }
@@ -668,7 +804,7 @@ function initGame1() {
 // ===== GAME 2: MATCH-3 =====
 function initGame2() {
   const COLS=7, ROWS=8;
-  let score=0, moves=30, combos=0, animating=false, board=[];
+  let score=0, moves=20, combos=0, animating=false, board=[];
   // Drag state
   let dragSrc=null, dragStartX=0, dragStartY=0, dragEl=null, isDragging=false;
 
@@ -879,10 +1015,10 @@ function initGame2() {
   function endGame2(){
     SFX.win();
     document.getElementById('g2final').textContent=score;
-    document.getElementById('g2stars').innerHTML=makeStars(score,1000);
-    document.getElementById('g2over').classList.add('show');
+    applyStars('g2stars', score, 400, 2);
     bestScores.g2=Math.max(bestScores.g2||0,score);
     localStorage.setItem('delio_best',JSON.stringify(bestScores));
+    document.getElementById('g2over').classList.add('show');
   }
 
   render();
@@ -1018,10 +1154,10 @@ function initGame3() {
       clearInterval(tickI);
       SFX.gameover();
       document.getElementById('g3final').textContent=score;
-      document.getElementById('g3stars').innerHTML=makeStars(score,200);
-      document.getElementById('g3over').classList.add('show');
+      applyStars('g3stars', score, 200, 3);
       bestScores.g3=Math.max(bestScores.g3||0,score);
       localStorage.setItem('delio_best',JSON.stringify(bestScores));
+      document.getElementById('g3over').classList.add('show');
     }
   },1000);
   activeTimers.push(tickI);
@@ -1077,7 +1213,8 @@ function initGame4() {
           const t=setTimeout(()=>{
             SFX.win();
             document.getElementById('g4final').textContent=moves;
-            document.getElementById('g4stars').innerHTML=makeStars(moves<=10?3:moves<=16?2:1,3);
+            const g4score = moves<=10 ? 3 : moves<=16 ? 2 : 1;
+            applyStars('g4stars', g4score, 3, 4);
             document.getElementById('g4win').classList.add('show');
             bestScores.g4=Math.min(bestScores.g4||9999,moves);
             document.getElementById('g4best').textContent=bestScores.g4+' cp';
@@ -1097,3 +1234,6 @@ function initGame4() {
   }
   updateHUD();
 }
+
+// ===== INIT =====
+updateHomeCards();
