@@ -12,6 +12,56 @@
 <canvas id="bg-canvas"></canvas>
 <button id="sound-btn" onclick="toggleSound()" title="Son on/off">🔊</button>
 
+<!-- ===== SPLASH SCREEN ===== -->
+<div id="splash-screen">
+  <div class="splash-orbs">
+    <div class="splash-orb" style="--c:#26c6da;--sz:320px;--x:10%;--y:15%;--d:6s"></div>
+    <div class="splash-orb" style="--c:#ec407a;--sz:240px;--x:75%;--y:5%;--d:8s"></div>
+    <div class="splash-orb" style="--c:#f59300;--sz:200px;--x:80%;--y:70%;--d:7s"></div>
+    <div class="splash-orb" style="--c:#8bc34a;--sz:160px;--x:5%;--y:75%;--d:9s"></div>
+    <div class="splash-orb" style="--c:#ffb300;--sz:140px;--x:50%;--y:85%;--d:5s"></div>
+  </div>
+
+  <div class="splash-main">
+    <!-- Logo -->
+    <div class="splash-logo">
+      <h1>Déli'O</h1>
+      <div class="splash-sub">✦ Hub de Jeux Pétillants ✦</div>
+    </div>
+
+    <!-- Animated glass fill -->
+    <div class="splash-glass-wrap">
+      <div class="splash-glass">
+        <!-- shine -->
+        <div class="splash-glass-shine"></div>
+        <!-- liquid fill -->
+        <div class="splash-liquid" id="splash-liquid">
+          <div class="splash-wave w1"></div>
+          <div class="splash-wave w2"></div>
+          <div class="splash-bubbles" id="splash-bubbles"></div>
+        </div>
+        <!-- percentage text -->
+        <div class="splash-pct-label" id="splash-pct">0%</div>
+      </div>
+      <!-- glass rim glow -->
+      <div class="splash-glass-glow" id="splash-glow"></div>
+    </div>
+
+    <!-- Flavor chips that light up as loading progresses -->
+    <div class="splash-flavors">
+      <span class="sp-chip" id="spf-0" style="--fc:#26c6da">🌿 Menthe</span>
+      <span class="sp-chip" id="spf-1" style="--fc:#8bc34a">🍐 Poire</span>
+      <span class="sp-chip" id="spf-2" style="--fc:#ffb300">🍑 Pêche</span>
+      <span class="sp-chip" id="spf-3" style="--fc:#ec407a">🍓 Fraise</span>
+      <span class="sp-chip" id="spf-4" style="--fc:#f59300">🍍 Ananas</span>
+      <span class="sp-chip" id="spf-5" style="--fc:#43a047">🍏 Pomme</span>
+    </div>
+
+    <!-- Status text -->
+    <div class="splash-status" id="splash-status">Préparation des saveurs…</div>
+  </div>
+</div>
+
 <!-- ===== LOTTERY MODAL ===== -->
 <div id="lottery-modal">
   <div class="lottery-box" id="lottery-box-inner">
@@ -308,5 +358,133 @@
 </div>
 
 <script src="script.js"></script>
+<script>
+/* ====== SPLASH SCREEN LOGIC ====== */
+(function() {
+  const DURATION = 5000; // 5 seconds
+  const splash   = document.getElementById('splash-screen');
+  const liquid   = document.getElementById('splash-liquid');
+  const pctLabel = document.getElementById('splash-pct');
+  const statusEl = document.getElementById('splash-status');
+  const bubblesWrap = document.getElementById('splash-bubbles');
+  const glowEl   = document.getElementById('splash-glow');
+
+  const messages = [
+    "Préparation des saveurs…",
+    "Mélange des fruits pétillants…",
+    "Chargement des jeux…",
+    "Presque prêt à jouer !",
+    "C'est l'heure de s'éclater ! 🎉"
+  ];
+
+  const flavorColors = ['#26c6da','#8bc34a','#ffb300','#ec407a','#f59300','#43a047'];
+  const flavorThresholds = [10, 27, 44, 60, 77, 93]; // % at which each chip lights up
+
+  let startTime = null;
+  let msgIndex   = 0;
+  let lastMsgSwitch = 0;
+  let bubbleInterval;
+
+  // Liquid gradient colors that shift as it fills
+  const gradStops = [
+    { pct: 0,   color: '#f59300' },
+    { pct: 25,  color: '#ec407a' },
+    { pct: 50,  color: '#8bc34a' },
+    { pct: 75,  color: '#26c6da' },
+    { pct: 100, color: '#43a047' }
+  ];
+
+  function lerpColor(a, b, t) {
+    const ah = parseInt(a.slice(1),16), bh = parseInt(b.slice(1),16);
+    const ar = (ah>>16)&0xff, ag=(ah>>8)&0xff, ab_=ah&0xff;
+    const br = (bh>>16)&0xff, bg=(bh>>8)&0xff, bb_=bh&0xff;
+    const rr = Math.round(ar+(br-ar)*t);
+    const rg = Math.round(ag+(bg-ag)*t);
+    const rb = Math.round(ab_+(bb_-ab_)*t);
+    return `rgb(${rr},${rg},${rb})`;
+  }
+
+  function getLiquidColor(pct) {
+    for (let i = 0; i < gradStops.length - 1; i++) {
+      if (pct >= gradStops[i].pct && pct <= gradStops[i+1].pct) {
+        const t = (pct - gradStops[i].pct) / (gradStops[i+1].pct - gradStops[i].pct);
+        return lerpColor(gradStops[i].color, gradStops[i+1].color, t);
+      }
+    }
+    return gradStops[gradStops.length-1].color;
+  }
+
+  function spawnBubble() {
+    const b = document.createElement('div');
+    b.className = 'sp-bubble';
+    const sz = 4 + Math.random() * 10;
+    const left = 8 + Math.random() * 84;
+    const dur  = 0.8 + Math.random() * 1.4;
+    b.style.cssText = `width:${sz}px;height:${sz}px;left:${left}%;animation-duration:${dur}s;animation-delay:${Math.random()*0.5}s`;
+    bubblesWrap.appendChild(b);
+    setTimeout(() => b.remove(), (dur + 0.5) * 1000);
+  }
+
+  function tick(ts) {
+    if (!startTime) startTime = ts;
+    const elapsed = ts - startTime;
+    const pct = Math.min(100, (elapsed / DURATION) * 100);
+
+    // Update liquid height
+    liquid.style.height = pct + '%';
+
+    // Update liquid color
+    const col = getLiquidColor(pct);
+    liquid.style.background = `linear-gradient(180deg, ${col}cc 0%, ${col} 60%)`;
+    liquid.querySelector('.w1').style.borderTopColor = col + 'aa';
+    liquid.querySelector('.w2').style.borderTopColor = col + '66';
+    glowEl.style.boxShadow = `0 0 40px 8px ${col}55, 0 0 80px 20px ${col}22`;
+    glowEl.style.borderColor = col + '66';
+
+    // Update percentage text
+    const pctInt = Math.floor(pct);
+    pctLabel.textContent = pctInt + '%';
+
+    // Light up flavor chips
+    flavorThresholds.forEach((threshold, i) => {
+      if (pct >= threshold) {
+        document.getElementById('spf-' + i).classList.add('active');
+      }
+    });
+
+    // Cycle status messages
+    const msgInterval = DURATION / messages.length;
+    const newMsgIndex = Math.min(messages.length - 1, Math.floor(elapsed / msgInterval));
+    if (newMsgIndex !== msgIndex) {
+      msgIndex = newMsgIndex;
+      statusEl.style.opacity = '0';
+      setTimeout(() => {
+        statusEl.textContent = messages[msgIndex];
+        statusEl.style.opacity = '1';
+      }, 200);
+    }
+
+    if (pct < 100) {
+      requestAnimationFrame(tick);
+    } else {
+      // Fully loaded — dismiss
+      pctLabel.textContent = '100%';
+      clearInterval(bubbleInterval);
+      setTimeout(() => {
+        splash.classList.add('splash-out');
+        setTimeout(() => {
+          splash.style.display = 'none';
+        }, 700);
+      }, 300);
+    }
+  }
+
+  // Start bubble spawning
+  bubbleInterval = setInterval(spawnBubble, 180);
+
+  // Kick off animation
+  requestAnimationFrame(tick);
+})();
+</script>
 </body>
 </html>
