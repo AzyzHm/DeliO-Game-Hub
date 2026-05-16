@@ -319,25 +319,25 @@ document.addEventListener('touchstart', tryStartMusic);
       r: 4 + Math.random()*18,
       vx: (Math.random()-.5)*.3,
       vy: -.1 - Math.random()*.4,
-      alpha: 0.04 + Math.random()*0.1,
+      alpha: 0.12 + Math.random()*0.18,
       color: FLAVORS[Math.floor(Math.random()*6)].color
     });
   }
 
   function draw(ts) {
     ctx.clearRect(0,0,W,H);
-    // Deep ocean gradient bg
+    // Bright warm cream gradient bg
     const gr = ctx.createLinearGradient(0,0,W,H);
-    gr.addColorStop(0,'#0a1438');
-    gr.addColorStop(0.4,'#0d1b4b');
-    gr.addColorStop(0.7,'#122366');
-    gr.addColorStop(1,'#091030');
+    gr.addColorStop(0,'#fef9f5');
+    gr.addColorStop(0.4,'#fdf2e8');
+    gr.addColorStop(0.7,'#fae8d6');
+    gr.addColorStop(1,'#fef5ee');
     ctx.fillStyle = gr;
     ctx.fillRect(0,0,W,H);
 
     // Subtle radial glow center
     const cg = ctx.createRadialGradient(W*.5,H*.3,0,W*.5,H*.3,W*.7);
-    cg.addColorStop(0,'rgba(39,86,208,0.12)');
+    cg.addColorStop(0,'rgba(245,160,90,0.08)');
     cg.addColorStop(1,'transparent');
     ctx.fillStyle = cg;
     ctx.fillRect(0,0,W,H);
@@ -366,7 +366,7 @@ document.addEventListener('touchstart', tryStartMusic);
     for(let i=0;i<6;i++){
       const sx = (W*.1+i*W*.15 + Math.sin(ts*.0003+i)*(W*.04));
       const sy = (H*.1 + i*H*.08 + Math.cos(ts*.0004+i)*(H*.03));
-      ctx.fillStyle = '#f5c200';
+      ctx.fillStyle = '#d47800';
       ctx.font = '12px serif';
       ctx.fillText('✦', sx, sy);
     }
@@ -684,7 +684,7 @@ function initGame1() {
   function loop(ts) {
     if(!active) return;
     ctx.clearRect(0,0,W,H);
-    ctx.fillStyle = '#0d1b4b';
+    ctx.fillStyle = '#fdf2e8';
     ctx.fillRect(0,0,W,H);
 
     // Lane guides
@@ -766,7 +766,7 @@ function initGame1() {
       ctx.globalAlpha = fade;
       // Banner bg
       const bw = Math.min(W - 20, 340), bh = 44, bx = (W-bw)/2, by = 18;
-      ctx.fillStyle = 'rgba(10,20,60,0.85)';
+      ctx.fillStyle = 'rgba(254,242,230,0.88)';
       if(ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 10);
       else ctx.rect(bx, by, bw, bh);
       ctx.fill();
